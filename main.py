@@ -26,6 +26,7 @@ app = FastAPI(
 
 # 環境変数
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+APPROVE_GITHUB_TOKEN = os.getenv("APPROVE_GITHUB_TOKEN")
 GITHUB_OWNER = os.getenv("GITHUB_OWNER")
 GITHUB_API_BASE = "https://api.github.com"
 
@@ -58,15 +59,18 @@ class ApproveMergePRRequest(BaseModel):
 
 
 # ヘルパー関数
-def get_headers():
+def get_headers(use_approve_token: bool = False):
     """認証付きのGitHub APIヘッダーを取得"""
-    if not GITHUB_TOKEN:
+    token = APPROVE_GITHUB_TOKEN if use_approve_token else GITHUB_TOKEN
+    token_name = "APPROVE_GITHUB_TOKEN" if use_approve_token else "GITHUB_TOKEN"
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GITHUB_TOKEN環境変数が設定されていません"
+            detail=f"{token_name}環境変数が設定されていません"
         )
     return {
-        "Authorization": f"token {GITHUB_TOKEN}",
+        "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json",
         "Content-Type": "application/json"
     }
@@ -300,7 +304,7 @@ async def approve_and_merge_pr(request: ApproveMergePRRequest):
             "body": request.review_comment
         }
 
-        review_response = await client.post(review_url, headers=get_headers(), json=review_payload)
+        review_response = await client.post(review_url, headers=get_headers(use_approve_token=True), json=review_payload)
 
         if review_response.status_code != 200:
             raise HTTPException(
@@ -320,7 +324,7 @@ async def approve_and_merge_pr(request: ApproveMergePRRequest):
         if request.commit_message:
             merge_payload["commit_message"] = request.commit_message
 
-        merge_response = await client.put(merge_url, headers=get_headers(), json=merge_payload)
+        merge_response = await client.put(merge_url, headers=get_headers(use_approve_token=True), json=merge_payload)
 
         if merge_response.status_code != 200:
             raise HTTPException(
@@ -363,6 +367,7 @@ async def root():
         },
         "environment": {
             "github_token_set": bool(GITHUB_TOKEN),
+            "approve_github_token_set": bool(APPROVE_GITHUB_TOKEN),
             "github_owner_set": bool(GITHUB_OWNER),
             "github_owner": GITHUB_OWNER if GITHUB_OWNER else None
         }

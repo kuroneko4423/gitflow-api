@@ -91,17 +91,27 @@ cp .env.example .env
 
 ```env
 GITHUB_TOKEN=ghp_your_actual_token_here
+APPROVE_GITHUB_TOKEN=ghp_your_approve_token_here
 GITHUB_OWNER=your-username-or-org
 ```
 
 ### 3. GitHub Personal Access Tokenの取得
 
+#### GITHUB_TOKEN（Issue作成・PR作成用）
 1. GitHubにログイン
 2. Settings → Developer settings → Personal access tokens → Tokens (classic)
 3. 「Generate new token」をクリック
 4. 必要な権限を選択:
    - `repo` (Full control of private repositories)
 5. トークンを生成してコピー
+
+#### APPROVE_GITHUB_TOKEN（PR承認・マージ用）
+1. 上記と同じ手順でもう1つトークンを作成
+2. 必要な権限を選択:
+   - `repo` (Full control of private repositories)
+3. トークンを生成してコピー
+
+**注意**: PR承認とマージには別のトークンが必要です。これにより、承認権限を持つユーザーのトークンを使用してPRを承認・マージできます。
 
 ### 4. アプリケーションの起動
 
@@ -255,6 +265,7 @@ curl http://localhost:8000/
   },
   "environment": {
     "github_token_set": true,
+    "approve_github_token_set": true,
     "github_owner_set": true,
     "github_owner": "your-username"
   }
@@ -297,13 +308,15 @@ docker run -d -p 8000:8000 --env-file .env github-api-service
 
 ## 🔒 セキュリティに関する注意事項
 
-1. **トークンの管理**: GitHub Personal Access Tokenは機密情報です。必ず`.env`ファイルで管理し、リポジトリにコミットしないでください（`.gitignore`に追加することを推奨）。
+1. **トークンの管理**: GitHub Personal Access Token（`GITHUB_TOKEN`と`APPROVE_GITHUB_TOKEN`）は機密情報です。必ず`.env`ファイルで管理し、リポジトリにコミットしないでください（`.gitignore`に追加することを推奨）。
 
-2. **権限の最小化**: トークンには必要最小限の権限のみを付与してください。
+2. **権限の分離**: `APPROVE_GITHUB_TOKEN`はPR承認・マージ専用です。承認権限を持つユーザーのトークンを使用することで、適切な権限管理が可能です。
 
-3. **アクセス制限**: 本番環境では、適切なファイアウォールやAPIゲートウェイで保護してください。
+3. **権限の最小化**: トークンには必要最小限の権限のみを付与してください。
 
-4. **HTTPS**: 本番環境では必ずHTTPS（リバースプロキシ等）を使用してください。
+4. **アクセス制限**: 本番環境では、適切なファイアウォールやAPIゲートウェイで保護してください。
+
+5. **HTTPS**: 本番環境では必ずHTTPS（リバースプロキシ等）を使用してください。
 
 ## 🔧 技術スタック
 
@@ -360,11 +373,15 @@ docker run -d -p 8000:8000 --env-file .env github-api-service
    - `.env`ファイルが正しく配置されているか確認
    - `GITHUB_TOKEN`の値が正しく設定されているか確認
 
-2. **`Pull Requestの取得に失敗しました`エラー**
+2. **`APPROVE_GITHUB_TOKEN環境変数が設定されていません`エラー**
+   - `.env`ファイルに`APPROVE_GITHUB_TOKEN`が設定されているか確認
+   - PR承認・マージ用のトークンが正しく設定されているか確認
+
+3. **`Pull Requestの取得に失敗しました`エラー**
    - GitHub Personal Access Tokenに`repo`権限があるか確認
    - リポジトリ名とオーナー名が正しいか確認
 
-3. **ポートがすでに使用されている**
+4. **ポートがすでに使用されている**
    ```bash
    # 別のポートで起動
    uvicorn main:app --port 8001
@@ -375,6 +392,7 @@ docker run -d -p 8000:8000 --env-file .env github-api-service
 すべてのエラーメッセージは日本語で表示されます：
 
 - `GITHUB_TOKEN環境変数が設定されていません`
+- `APPROVE_GITHUB_TOKEN環境変数が設定されていません`
 - `GITHUB_OWNER環境変数が設定されていません`
 - `Pull Requestの取得に失敗しました`
 - `ブランチの取得に失敗しました`
